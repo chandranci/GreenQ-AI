@@ -1,5 +1,12 @@
 import { Link } from 'react-router-dom'
-import { Recycle, Truck, Users, Leaf, ArrowRight, CheckCircle } from 'lucide-react'
+//import { Recycle, Truck, Users, Leaf, ArrowRight, CheckCircle } from 'lucide-react'
+import {
+  ArrowRight,
+  Truck,
+  Leaf,
+  Users,
+  CheckCircle
+} from 'lucide-react';
 
 export default function Home() {
   return (
