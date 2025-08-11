@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import {
@@ -54,7 +55,7 @@ export default function Dashboard() {
 
   const fetchUserData = async () => {
     try {
-      // 1) Fetch user profile from your USERS table
+      // 1) Fetch user profile
       const { data: profileData, error: profileError } = await supabase
         .from('users')
         .select('id, first_name, last_name, full_name, email, phone_code, phone, full_phone, address')
@@ -196,12 +197,12 @@ export default function Dashboard() {
                 <div className="text-center py-8">
                   <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600">No pickups scheduled yet</p>
-                  <a
-                    href="/services"
+                  <Link
+                    to="/services"
                     className="inline-block mt-4 bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition-colors"
                   >
                     Schedule Your First Pickup
-                  </a>
+                  </Link>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -274,18 +275,18 @@ export default function Dashboard() {
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
               <div className="space-y-3">
-                <a
-                  href="/services"
+                <Link
+                  to="/services"
                   className="block w-full bg-emerald-600 text-white text-center py-2 px-4 rounded-md hover:bg-emerald-700 transition-colors"
                 >
                   Schedule New Pickup
-                </a>
-                <a
-                  href="/contact"
+                </Link>
+                <Link
+                  to="/contact"
                   className="block w-full border border-emerald-600 text-emerald-600 text-center py-2 px-4 rounded-md hover:bg-emerald-50 transition-colors"
                 >
                   Contact Support
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -307,6 +308,7 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       </div>
