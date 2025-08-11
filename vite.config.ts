@@ -6,13 +6,12 @@ import { dirname } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  base: '/GreenQ-AI/', // 👈 Add this line for GitHub Pages
+  // no base here; we pass --base only when deploying to GH Pages
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
 })
