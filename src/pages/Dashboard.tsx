@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabaseClient'
-import { Calendar, Truck, Recycle, TrendingUp, Clock, MapPin, CheckCircle, AlertCircle } from 'lucide-react'
+import {
+  Calendar, Truck, Recycle, TrendingUp, Clock, MapPin, CheckCircle, AlertCircle
+} from 'lucide-react'
 
 interface Pickup {
   id: string
-  pickup_date: string
+  pickup_date: string   // Supabase returns ISO string for date
   pickup_time: string
   address: string
   service_type: string
@@ -15,10 +17,15 @@ interface Pickup {
 }
 
 interface Profile {
-  full_name: string
+  id: string
+  first_name: string | null
+  last_name: string | null
+  full_name: string | null
   email: string
+  phone_code: string
   phone: string
-  address: string
+  full_phone: string | null
+  address: string | null
 }
 
 export default function Dashboard() {
@@ -28,24 +35,36 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (user) {
-      fetchUserData()
-    }
+    if (!user) return
+    fetchUserData()
+
+    // Optional: live-update when pickups change for this user
+    const channel = supabase
+      .channel('pickups-feed')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pickups', filter: `user_id=eq.${user.id}` },
+        () => fetchUserData()
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const fetchUserData = async () => {
     try {
-      // Fetch user profile
+      // 1) Fetch user profile from your USERS table
       const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
+        .from('users')
+        .select('id, first_name, last_name, full_name, email, phone_code, phone, full_phone, address')
         .eq('id', user!.id)
         .single()
 
       if (profileError) throw profileError
-      setProfile(profileData)
+      setProfile(profileData as Profile)
 
-      // Fetch user pickups
+      // 2) Fetch this user's pickups
       const { data: pickupsData, error: pickupsError } = await supabase
         .from('pickups')
         .select('*')
@@ -53,9 +72,10 @@ export default function Dashboard() {
         .order('pickup_date', { ascending: false })
 
       if (pickupsError) throw pickupsError
-      setPickups(pickupsData || [])
-    } catch (error) {
-      console.error('Error fetching user data:', error)
+      setPickups((pickupsData || []) as Pickup[])
+    } catch (err: any) {
+      console.error('Error fetching user data:', err)
+      alert(`Error fetching user data: ${err?.message ?? err}`)
     } finally {
       setLoading(false)
     }
@@ -90,10 +110,15 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-600" />
       </div>
     )
   }
+
+  const name =
+    profile?.full_name ||
+    [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') ||
+    'User'
 
   const completedPickups = pickups.filter(p => p.status === 'completed').length
   const scheduledPickups = pickups.filter(p => p.status === 'scheduled').length
@@ -105,7 +130,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {profile?.full_name || 'User'}!
+            Welcome back, {name}!
           </h1>
           <p className="text-gray-600 mt-2">Here's your waste management dashboard</p>
         </div>
@@ -166,7 +191,7 @@ export default function Dashboard() {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Recent Pickups</h2>
-              
+
               {pickups.length === 0 ? (
                 <div className="text-center py-8">
                   <Truck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -193,17 +218,19 @@ export default function Dashboard() {
                           {pickup.status.replace('_', ' ').toUpperCase()}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center text-sm text-gray-600 mb-1">
                         <Calendar className="h-4 w-4 mr-1" />
-                        <span>{new Date(pickup.pickup_date).toLocaleDateString()} at {pickup.pickup_time}</span>
+                        <span>
+                          {new Date(pickup.pickup_date).toLocaleDateString()} at {pickup.pickup_time}
+                        </span>
                       </div>
-                      
+
                       <div className="flex items-center text-sm text-gray-600">
                         <MapPin className="h-4 w-4 mr-1" />
                         <span>{pickup.address}</span>
                       </div>
-                      
+
                       {pickup.notes && (
                         <p className="text-sm text-gray-600 mt-2 italic">{pickup.notes}</p>
                       )}
@@ -223,7 +250,9 @@ export default function Dashboard() {
                 <div className="space-y-3">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Name</p>
-                    <p className="text-gray-900">{profile.full_name}</p>
+                    <p className="text-gray-900">
+                      {profile.full_name || [profile.first_name, profile.last_name].filter(Boolean).join(' ')}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-600">Email</p>
@@ -231,11 +260,11 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-600">Phone</p>
-                    <p className="text-gray-900">{profile.phone}</p>
+                    <p className="text-gray-900">{profile.full_phone || `${profile.phone_code}${profile.phone}`}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-600">Address</p>
-                    <p className="text-gray-900">{profile.address}</p>
+                    <p className="text-gray-900">{profile.address || '—'}</p>
                   </div>
                 </div>
               )}
