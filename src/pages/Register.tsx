@@ -49,32 +49,32 @@ export default function Register() {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+  e.preventDefault()
+  setLoading(true)
+  setError('')
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
-      setLoading(false)
-      return
-    }
+  if (formData.password !== formData.confirmPassword) {
+    setError('Passwords do not match')
+    setLoading(false)
+    return
+  }
 
-    try {
-      // Register user in Supabase Auth
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password
-      })
+  try {
+    // 1) Create the auth user
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password
+    })
+    if (signUpError) throw signUpError
 
-      if (signUpError) throw signUpError
+    // If your project requires email confirmation, session will be null here.
+    // The trigger already created public.users row. We only UPDATE when a session exists.
+    if (signUpData.session && signUpData.user) {
+      const userId = signUpData.user.id
 
-      const userId = signUpData.user?.id
-      if (!userId) throw new Error('User ID not returned')
-
-      // Insert user details into 'users' table
-      const { error: insertError } = await supabase.from('users').insert([
-        {
-          id: userId,
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
           first_name: formData.firstName,
           last_name: formData.lastName,
           email: formData.email,
@@ -85,18 +85,25 @@ export default function Register() {
           city: formData.city,
           state: formData.state,
           country: formData.country
-        }
-      ])
+        })
+        .eq('id', userId)
 
-      if (insertError) throw insertError
+      if (updateError) throw updateError
 
-      navigate('/dashboard')
-    } catch (error: any) {
-      setError(error.message || 'Failed to create account')
-    } finally {
-      setLoading(false)
+      navigate('/dashboard') // session exists, go straight in
+    } else {
+      // No session yet (email confirmation flow)
+      // Let the user know to check their email, then send to login.
+      alert('We sent you a confirmation link. After confirming, please log in to complete your profile.')
+      navigate('/login')
     }
+  } catch (err: any) {
+    setError(err?.message || 'Failed to create account')
+  } finally {
+    setLoading(false)
   }
+}
+
 
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
